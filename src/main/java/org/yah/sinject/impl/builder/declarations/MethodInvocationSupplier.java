@@ -13,6 +13,7 @@ public class MethodInvocationSupplier<T> implements InstanceSupplier<T> {
     public MethodInvocationSupplier(AnnotatedMethod method, ResolvedDependencies resolvedDependencies) {
         this.method = method;
         this.resolvedDependencies = resolvedDependencies;
+        method.ensureAccessible();
     }
 
     @Override

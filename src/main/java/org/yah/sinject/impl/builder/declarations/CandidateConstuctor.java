@@ -45,6 +45,11 @@ public class CandidateConstuctor<T> {
                 '}';
     }
 
+    public void ensureAccessible() {
+        if (!constructor.canAccess(null))
+            constructor.setAccessible(true);
+    }
+
     T newInstance(Object[] params) throws IllegalAccessException, InvocationTargetException, InstantiationException {
         return constructor.newInstance(params);
     }

@@ -5,15 +5,20 @@ import org.yah.sinject.*;
 import org.yah.sinject.builder.ServiceDeclaration;
 import org.yah.sinject.builder.ServiceTransformer;
 import org.yah.sinject.exceptions.CircularDependencyException;
+import org.yah.sinject.exceptions.NoSuchServiceException;
 import org.yah.sinject.exceptions.ServiceResolutionException;
 import org.yah.sinject.impl.builder.ServiceDeclarationBuilder;
-import org.yah.sinject.exceptions.NoSuchServiceException;
+import org.yah.sinject.impl.builder.declarations.AnnotatedMethod;
+import org.yah.sinject.impl.builder.declarations.MethodServiceDeclaration;
 
 import javax.annotation.Nonnull;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.reflect.TypeUtils.getRawType;
 
 public class DefaultServicesBuilder {
 
@@ -87,6 +92,17 @@ public class DefaultServicesBuilder {
             // register the Services instance as a service itself
             declare(Services.class).withName(name).withInstance(new ExposedServices(services)).register();
 
+            // lookup any service that contains nested annotated methods,
+            LinkedList<ServiceDeclaration<?>> remainings = new LinkedList<>(declarations);
+            while (!remainings.isEmpty()) {
+                final ServiceDeclaration<?> declaration = remainings.poll();
+                final Collection<ServiceDeclaration<?>> newDeclarations = scanMethods(declaration);
+                newDeclarations.forEach(newDeclaration -> {
+                    remainings.offer(newDeclaration);
+                    register(newDeclaration);
+                });
+            }
+
             // collect definitions transformers from parent
             services.services(ServiceTransformer.class).forEach(transformers::add);
 
@@ -107,6 +123,28 @@ public class DefaultServicesBuilder {
 
             services.freeze();
             return services;
+        }
+
+        private Collection<ServiceDeclaration<?>> scanMethods(ServiceDeclaration<?> serviceDeclaration) {
+            // walk up class hierarchy to collect any annotated methods
+            Class<?> current = getRawType(serviceDeclaration.type(), null);
+            final List<ServiceDeclaration<?>> methodDeclarations = new ArrayList<>();
+            while (current != null) {
+                Arrays.stream(current.getDeclaredMethods())
+                        .map(this::createAnnotatedMethod)
+                        .filter(Objects::nonNull)
+                        .map(method -> MethodServiceDeclaration.create(serviceDeclaration, method))
+                        .forEach(methodDeclarations::add);
+                current = current.getSuperclass();
+            }
+            return methodDeclarations;
+        }
+
+        private AnnotatedMethod createAnnotatedMethod(Method method) {
+            final org.yah.sinject.annotations.Service annotation = method.getAnnotation(org.yah.sinject.annotations.Service.class);
+            if (annotation != null)
+                return new AnnotatedMethod(method, annotation);
+            return null;
         }
 
         @Override

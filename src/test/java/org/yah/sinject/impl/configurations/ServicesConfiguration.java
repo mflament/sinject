@@ -42,7 +42,7 @@ public class ServicesConfiguration {
     }
 
     @Service
-    public ServiceD serviceD(ServiceC serviceC) {
+    private ServiceD serviceD(ServiceC serviceC) {
         return new ServiceD(serviceC);
     }
 
@@ -76,6 +76,11 @@ public class ServicesConfiguration {
         return Optional.of(new ServiceB(theString));
     }
 
+    @Service
+    public Class<NestedConfiguration> nestedConfiguration() {
+        return NestedConfiguration.class;
+    }
+
     public interface ServiceF {
         ServiceA getServiceA();
 
@@ -97,6 +102,11 @@ public class ServicesConfiguration {
         public final ServiceB serviceB;
         public final Supplier<String> stringSupplier;
         public final Supplier<Double> doubleSupplier;
+
+        @Service
+        private ServiceC(ServiceB serviceB, Optional<Supplier<String>> stringSupplier, Optional<Supplier<Double>> doubleSupplier) {
+            this(serviceB, stringSupplier.orElse(null), doubleSupplier.orElse(null));
+        }
 
         public ServiceC(ServiceB serviceB, Supplier<String> stringSupplier, Supplier<Double> doubleSupplier) {
             this.serviceB = serviceB;
@@ -144,4 +154,15 @@ public class ServicesConfiguration {
 
     }
 
+    public static class NestedConfiguration {
+        @Service(priority = 5)
+        public Class<ServiceC> nestedServiceC() {
+            return ServiceC.class;
+        }
+
+        @Service
+        public static String staticString() {
+            return "static";
+        }
+    }
 }

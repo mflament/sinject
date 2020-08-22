@@ -14,6 +14,7 @@ public class ResolvedConstructor<T> implements Comparable<ResolvedConstructor<T>
                         ResolvedDependencies resolvedDependencies) {
         this.constructor = Objects.requireNonNull(constructor, "constructor is null");
         this.resolvedDependencies = resolvedDependencies;
+        constructor.ensureAccessible();
     }
 
     public CandidateConstuctor<T> getConstructor() {

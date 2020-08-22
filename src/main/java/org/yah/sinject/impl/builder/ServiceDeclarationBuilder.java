@@ -67,43 +67,23 @@ public final class ServiceDeclarationBuilder<T> {
     }
 
     public DefaultServicesBuilder register() {
+        final ServiceDeclaration<?> declaration;
         if (instanceFactory == null) {
             //noinspection unchecked
             final Class<T> serviceClass = (Class<T>) getRawType(serviceType, null);
-            final ServiceDeclaration<T> serviceDeclaration = ClassInstanceDeclaration.builder(serviceClass)
+            declaration = ClassInstanceDeclaration.builder(serviceClass)
                     .withPriority(priority)
                     .withName(name)
                     .build();
-            servicesBuilder.register(serviceDeclaration);
-
-            // walk up class hierarchy to collect any annotated methods
-            Class<?> current = serviceClass;
-            while (current != null) {
-                Arrays.stream(current.getDeclaredMethods())
-                        .map(this::createAnnotatedMethod)
-                        .filter(Objects::nonNull)
-                        .map(method -> MethodServiceDeclaration.create(serviceDeclaration, method))
-                        .forEach(servicesBuilder::register);
-                current = current.getSuperclass();
-            }
-            return servicesBuilder;
         } else {
-            final ServiceDeclaration<?> declaration = DefaultServiceDeclaration.<T>builder(serviceType)
+            declaration = DefaultServiceDeclaration.<T>builder(serviceType)
                     .withName(name)
                     .withPriority(priority)
                     .withDependencies(dependencies)
                     .withFactory(instanceFactory)
                     .build();
-            return servicesBuilder.register(declaration);
         }
+        return servicesBuilder.register(declaration);
     }
-
-    private AnnotatedMethod createAnnotatedMethod(Method method) {
-        final Service annotation = method.getAnnotation(Service.class);
-        if (annotation != null)
-            return new AnnotatedMethod(method, annotation);
-        return null;
-    }
-
 
 }

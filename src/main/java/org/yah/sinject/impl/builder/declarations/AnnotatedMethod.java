@@ -105,6 +105,10 @@ public final class AnnotatedMethod {
         return (T) method.invoke(instance, dependencies);
     }
 
+    public void ensureAccessible() {
+        method.setAccessible(true);
+    }
+
     private static Type classArgument(Type type) {
         final Map<TypeVariable<?>, Type> arguments = TypeUtils.getTypeArguments(type, Class.class);
         if (arguments.isEmpty())

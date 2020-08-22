@@ -18,6 +18,8 @@ import org.yah.sinject.impl.configurations.CircularDependency;
 import org.yah.sinject.exceptions.CircularDependencyException;
 import org.yah.sinject.exceptions.NoSuchServiceException;
 import org.yah.sinject.exceptions.ServiceCreationException;
+import org.yah.sinject.impl.configurations.ServicesConfiguration.NestedConfiguration;
+import org.yah.sinject.impl.configurations.ServicesConfiguration.ServiceC;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -77,8 +79,8 @@ public class DefaultServicesBuilderTest {
         ServicesConfiguration.ServiceB serviceB = services.get(ServicesConfiguration.ServiceB.class);
         assertThat(serviceB.theString, sameInstance(theString));
 
-        assertThat(services.service(ServicesConfiguration.ServiceC.class), match("serviceC", ServicesConfiguration.ServiceC.class));
-        ServicesConfiguration.ServiceC serviceC = services.get(ServicesConfiguration.ServiceC.class);
+        assertThat(services.service(ServiceC.class), match("serviceC", ServiceC.class));
+        ServiceC serviceC = services.get(ServiceC.class);
         assertThat(serviceC.serviceB, sameInstance(serviceB));
 
         assertThat(services.service(ServicesConfiguration.ServiceD.class), match("serviceD", ServicesConfiguration.ServiceD.class));
@@ -126,6 +128,18 @@ public class DefaultServicesBuilderTest {
     }
 
     @Test
+    public void test_nested_configuration() {
+        services.get(NestedConfiguration.class);
+        services.get("nestedServiceC", ServiceC.class);
+    }
+
+    @Test
+    public void test_static_string() {
+        final String staticString = services.get("staticString", String.class);
+        assertThat(staticString, is("static"));
+    }
+
+    @Test
     public void test_ambiguity() {
         assertThat(services.service("serviceA", ServicesConfiguration.ServiceA.class),
                 match("serviceA", ServicesConfiguration.ServiceA.class, Integer.MIN_VALUE));
@@ -141,7 +155,7 @@ public class DefaultServicesBuilderTest {
 
     @Test
     public void test_optional_dependency() {
-        final ServicesConfiguration.ServiceC serviceC = services.service(ServicesConfiguration.ServiceC.class).get();
+        final ServiceC serviceC = services.service(ServiceC.class).get();
         assertThat(serviceC.stringSupplier, is(services.get("stringSupplier", Supplier.class)));
         assertThat(serviceC.doubleSupplier, nullValue());
     }
