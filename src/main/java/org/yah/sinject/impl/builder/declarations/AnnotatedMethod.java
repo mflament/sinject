@@ -50,14 +50,6 @@ public final class AnnotatedMethod {
         serviceType = type;
     }
 
-    public Method getMethod() {
-        return method;
-    }
-
-    public Service getAnnotation() {
-        return annotation;
-    }
-
     public Type getServiceType() {
         return serviceType;
     }

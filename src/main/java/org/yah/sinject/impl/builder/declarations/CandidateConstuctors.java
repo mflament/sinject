@@ -49,7 +49,7 @@ public class CandidateConstuctors<T> {
     }
 
     public OptionalInt getPriority() {
-        return priority != null ? OptionalInt.of(priority) : OptionalInt.empty();
+        return priority == null ? OptionalInt.empty() : OptionalInt.of(priority);
     }
 
     public Optional<ResolvedConstructor<T>> resolve(ServiceResolver resolver) {

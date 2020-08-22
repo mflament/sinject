@@ -40,6 +40,7 @@ public class ServiceDependencies {
             return this;
         }
 
+        @SuppressWarnings("UnusedReturnValue")
         public Builder addDependencies(ServiceDependency... dependencies) {
             this.dependencies.addAll(Arrays.asList(dependencies));
             return this;

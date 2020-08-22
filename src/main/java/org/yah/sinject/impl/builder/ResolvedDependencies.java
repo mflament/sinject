@@ -19,10 +19,6 @@ public class ResolvedDependencies {
         resolved = resolvedCount == resolvedDependencies.size();
     }
 
-    public List<ResolvedServiceDependency> getResolvedDependencies() {
-        return resolvedDependencies;
-    }
-
     /**
      * @return true if all non optional dependencies are resolved
      */

@@ -13,11 +13,4 @@ public class ServiceCreationException extends RuntimeException {
         super("Error creating service " + definition + ": " + message, cause);
     }
 
-    public ServiceCreationException(String message) {
-        super(message);
-    }
-
-    public ServiceCreationException(String message, Throwable cause) {
-        super(message, cause);
-    }
 }

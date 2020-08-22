@@ -1,6 +1,5 @@
 package org.yah.sinject.impl.builder.declarations;
 
-import org.yah.sinject.impl.builder.ServiceDependencies;
 import org.yah.sinject.impl.builder.ResolvedDependencies;
 
 import java.lang.reflect.InvocationTargetException;
@@ -17,20 +16,8 @@ public class ResolvedConstructor<T> implements Comparable<ResolvedConstructor<T>
         constructor.ensureAccessible();
     }
 
-    public CandidateConstuctor<T> getConstructor() {
-        return constructor;
-    }
-
-    public ResolvedDependencies getResolvedDependencies() {
-        return resolvedDependencies;
-    }
-
     public boolean isResolved() {
         return resolvedDependencies.isResolved();
-    }
-
-    public ServiceDependencies getDependencies() {
-        return constructor.getDependencies();
     }
 
     public int resolvedCount() {

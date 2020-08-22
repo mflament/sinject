@@ -38,14 +38,6 @@ public class ServiceDependency {
         this.optional = optional;
     }
 
-    public Type getType() {
-        return type;
-    }
-
-    public String getName() {
-        return name;
-    }
-
     public boolean isOptional() {
         return optional;
     }

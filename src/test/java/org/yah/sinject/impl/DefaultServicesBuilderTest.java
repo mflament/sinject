@@ -73,7 +73,7 @@ public class DefaultServicesBuilderTest {
 
         assertThat(services.service("serviceA", ServicesConfiguration.ServiceA.class),
                 match("serviceA", ServicesConfiguration.ServiceA.class, Integer.MIN_VALUE));
-        ServicesConfiguration.ServiceA serviceA = services.get("serviceA", ServicesConfiguration.ServiceA.class);
+        services.get("serviceA", ServicesConfiguration.ServiceA.class);
 
         assertThat(services.service(ServicesConfiguration.ServiceB.class), match("serviceB", ServicesConfiguration.ServiceB.class));
         ServicesConfiguration.ServiceB serviceB = services.get(ServicesConfiguration.ServiceB.class);

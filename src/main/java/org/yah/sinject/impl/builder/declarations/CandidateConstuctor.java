@@ -25,14 +25,6 @@ public class CandidateConstuctor<T> {
         this.dependencies = Objects.requireNonNull(dependencies, "dependencies is null");
     }
 
-    public Constructor<T> getConstructor() {
-        return constructor;
-    }
-
-    public ServiceDependencies getDependencies() {
-        return dependencies;
-    }
-
     public ResolvedConstructor<T> resolve(ServiceResolver resolver) {
         return new ResolvedConstructor<>(this, dependencies.resolve(resolver));
     }

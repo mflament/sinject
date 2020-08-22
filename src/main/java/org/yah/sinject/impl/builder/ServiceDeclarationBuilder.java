@@ -1,18 +1,13 @@
 package org.yah.sinject.impl.builder;
 
 import org.yah.sinject.Parametric;
-import org.yah.sinject.annotations.Service;
 import org.yah.sinject.builder.ServiceDeclaration;
 import org.yah.sinject.builder.ServiceInstanceFactory;
 import org.yah.sinject.impl.builder.declarations.DefaultServiceDeclaration;
-import org.yah.sinject.impl.builder.declarations.MethodServiceDeclaration;
 import org.yah.sinject.impl.DefaultServicesBuilder;
-import org.yah.sinject.impl.builder.declarations.AnnotatedMethod;
 import org.yah.sinject.impl.builder.declarations.ClassInstanceDeclaration;
 
-import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.util.Arrays;
 import java.util.Objects;
 
 import static org.apache.commons.lang3.reflect.TypeUtils.getRawType;
