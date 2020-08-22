@@ -52,7 +52,7 @@ public class ServiceDependency {
 
     @Override
     public String toString() {
-        return "ServiceDependency{" +
+        return "{" +
                 "type=" + type +
                 ", name='" + name + '\'' +
                 ", optional=" + optional +

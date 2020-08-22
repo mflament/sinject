@@ -37,10 +37,7 @@ public class ResolvedServiceDependency {
 
     @Override
     public String toString() {
-        return "ResolvedServiceDependency{" +
-                "dependency=" + dependency +
-                ", service=" + service +
-                '}';
+        return dependency.toString();
     }
 
     public Object get() {
