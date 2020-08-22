@@ -4,7 +4,7 @@
 
   <groupId>org.yah.sinject</groupId>
   <artifactId>sinject</artifactId>
-  <version>1.0.1</version>
+  <version>1.0.2-SNAPSHOT</version>
   <name>s-inject</name>
   <description>a simple dependency injection framework</description>
 
@@ -15,7 +15,7 @@
 
   <scm>
     <developerConnection>scm:git:git@github.com:mflament/sinject.git</developerConnection>
-    <tag>sinject-1.0.1</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <distributionManagement>
