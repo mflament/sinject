@@ -2,7 +2,12 @@ package org.yah.sinject.impl.configurations;
 
 
 import org.yah.sinject.annotations.Service;
+import org.yah.sinject.builder.ServiceDeclaration;
+import org.yah.sinject.builder.ServiceDeclarationTransformer;
+import org.yah.sinject.builder.ServiceInstanceTransformer;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -42,11 +47,6 @@ public class ServicesConfiguration {
     }
 
     @Service
-    private ServiceD serviceD(ServiceC serviceC) {
-        return new ServiceD(serviceC);
-    }
-
-    @Service
     public ServiceE serviceE(ServiceC serviceC, ServiceD serviceD) {
         return new ServiceE(serviceC, serviceD);
     }
@@ -81,10 +81,39 @@ public class ServicesConfiguration {
         return NestedConfiguration.class;
     }
 
+    @Service
+    public DeclarationTransformer declarationTransformer1() {
+        return new DeclarationTransformer();
+    }
+
+    @Service(priority = 2)
+    public Class<DeclarationTransformer> declarationTransformer2() {
+        return DeclarationTransformer.class;
+    }
+
+    @Service
+    public Class<InstanceTransformer> instanceTransformer1() {
+        return InstanceTransformer.class;
+    }
+
+    @Service(priority = 2)
+    public InstanceTransformer instanceTransformer2() {
+        return new InstanceTransformer();
+    }
+
+    @Service
+    private ServiceD serviceD(ServiceC serviceC) {
+        return new ServiceD(serviceC);
+    }
+
     public interface ServiceF {
         ServiceA getServiceA();
 
         ServiceE getServiceE();
+    }
+
+    public interface TranformedSupplier {
+        List<ServiceDeclaration<?>> getTransformeds();
     }
 
     public static class ServiceA {
@@ -115,11 +144,17 @@ public class ServicesConfiguration {
         }
     }
 
-    public static class ServiceD {
+    public static class ServiceD implements AutoCloseable {
         public final ServiceC serviceC;
+        public boolean closed;
 
         public ServiceD(ServiceC serviceC) {
             this.serviceC = serviceC;
+        }
+
+        @Override
+        public void close() {
+            closed = true;
         }
     }
 
@@ -151,18 +186,46 @@ public class ServicesConfiguration {
         public ServiceE getServiceE() {
             return serviceE;
         }
-
     }
 
     public static class NestedConfiguration {
-        @Service(priority = 5)
-        public Class<ServiceC> nestedServiceC() {
-            return ServiceC.class;
-        }
-
         @Service
         public static String staticString() {
             return "static";
         }
+
+        @Service(priority = 5)
+        public Class<ServiceC> nestedServiceC() {
+            return ServiceC.class;
+        }
     }
+
+    public static class InstanceTransformer implements ServiceInstanceTransformer {
+        private final List<ServiceDeclaration<?>> transformeds = new ArrayList<>();
+
+        @Override
+        public <T> T transform(ServiceDeclaration<? super T> declaration, T instance) {
+            transformeds.add(declaration);
+            return instance;
+        }
+
+        public List<ServiceDeclaration<?>> getTransformeds() {
+            return List.copyOf(transformeds);
+        }
+    }
+
+    public static class DeclarationTransformer implements ServiceDeclarationTransformer {
+        private final List<ServiceDeclaration<?>> transformeds = new ArrayList<>();
+
+        @Override
+        public ServiceDeclaration<?> transform(ServiceDeclaration<?> declaration) {
+            transformeds.add(declaration);
+            return declaration;
+        }
+
+        public List<ServiceDeclaration<?>> getTransformeds() {
+            return List.copyOf(transformeds);
+        }
+    }
+
 }

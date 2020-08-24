@@ -2,8 +2,10 @@ package org.yah.sinject.impl;
 
 import org.apache.commons.lang3.reflect.TypeUtils;
 import org.yah.sinject.*;
+import org.yah.sinject.builder.InstanceSupplier;
 import org.yah.sinject.builder.ServiceDeclaration;
-import org.yah.sinject.builder.ServiceTransformer;
+import org.yah.sinject.builder.ServiceDeclarationTransformer;
+import org.yah.sinject.builder.ServiceInstanceTransformer;
 import org.yah.sinject.exceptions.CircularDependencyException;
 import org.yah.sinject.exceptions.NoSuchServiceException;
 import org.yah.sinject.exceptions.ServiceResolutionException;
@@ -68,29 +70,27 @@ public class DefaultServicesBuilder {
         return this;
     }
 
-    private List<ServiceDeclaration<ServiceTransformer>> transformerDeclarations() {
-        //noinspection unchecked
-        return declarations.stream()
-                .filter(d -> d.isAssignableTo(ServiceTransformer.class))
-                .map(d -> (ServiceDeclaration<ServiceTransformer>) d)
-                .collect(Collectors.toList());
-    }
 
     private class BuilderContext implements ServiceResolver {
 
         private final DefaultServices services;
-        private final List<Service<ServiceTransformer>> transformers;
+        private final List<Service<ServiceDeclarationTransformer>> declarationTransformers;
+        private final List<Service<ServiceInstanceTransformer>> instanceTransformers;
         private final List<ServiceDeclaration<?>> resolvingDeclarations;
 
         public BuilderContext() {
             services = new DefaultServices(parent);
             resolvingDeclarations = new ArrayList<>();
-            transformers = new ArrayList<>();
+            declarationTransformers = new ArrayList<>();
+            instanceTransformers = new ArrayList<>();
         }
 
         public DefaultServices build() {
             // register the Services instance as a service itself
-            declare(Services.class).withName(name).withInstance(new ExposedServices(services)).register();
+            declare(Services.class)
+                    .withName(name)
+                    .withInstance(new ExposedServices(services))
+                    .register();
 
             // lookup any service that contains nested annotated methods,
             LinkedList<ServiceDeclaration<?>> remainings = new LinkedList<>(declarations);
@@ -103,26 +103,58 @@ public class DefaultServicesBuilder {
                 });
             }
 
-            // collect definitions transformers from parent
-            services.services(ServiceTransformer.class).forEach(transformers::add);
+            // collect transformers from parent
+            services.services(ServiceDeclarationTransformer.class).forEach(declarationTransformers::add);
+            services.services(ServiceInstanceTransformer.class).forEach(instanceTransformers::add);
 
-            // create new transformers
-            transformerDeclarations().stream()
-                    .map(this::createService)
-                    .filter(Objects::nonNull)
-                    .forEach(transformers::add);
+            // create new declarations transformers services
+            // they will be processed by:
+            // - any existing parent declaration and instance transformers
+            // - newly created transformers
+            // - not the new instance transformer, declaration transformer take precedence over instance transformers
+            prepareTransformers(ServiceDeclarationTransformer.class, declarationTransformers);
 
-            // sort transformers to respect priority with parent transformers
-            Collections.sort(transformers);
+            // collect new instance transformers
+            // they will all be processed by all declaration transformers (new and existing)
+            // they also will be processed by any previously created instance transformers
+            prepareTransformers(ServiceInstanceTransformer.class, instanceTransformers);
 
             // poll remaining configurations
             while (!declarations.isEmpty()) {
                 final ServiceDeclaration<?> declaration = declarations.peek();
-                createService(declaration);
+                transformAndCreateService(declaration);
             }
 
             services.freeze();
             return services;
+        }
+
+        @Override
+        public Service<?> service(String name, Type type) throws ServiceResolutionException {
+            try {
+                return services.service(name, type);
+            } catch (ServiceResolutionException e) {
+                ServiceDeclaration<?> declaration = declaration(name, type);
+                if (declaration != null)
+                    return transformAndCreateService(declaration);
+                if (isResolving(name, type))
+                    throw new CircularDependencyException(resolvingDeclarations);
+                throw new NoSuchServiceException(name, type);
+            }
+        }
+
+        private <T> void prepareTransformers(Class<T> type, List<Service<T>> target) {
+            final List<ServiceDeclaration<?>> transformerDeclarations = declarations.stream()
+                    .filter(d -> d.isAssignableTo(type))
+                    .collect(Collectors.toList());
+
+            //noinspection unchecked
+            transformerDeclarations.stream()
+                    .map(this::transformAndCreateService)
+                    // since service creation can change service type, we need to check again
+                    .filter(s -> s != null && s.isAssignableTo(type))
+                    .forEach(s -> target.add((Service<T>) s));
+            Collections.sort(target);
         }
 
         private Collection<ServiceDeclaration<?>> scanMethods(ServiceDeclaration<?> serviceDeclaration) {
@@ -141,29 +173,13 @@ public class DefaultServicesBuilder {
         }
 
         private AnnotatedMethod createAnnotatedMethod(Method method) {
-            final org.yah.sinject.annotations.Service annotation = method.getAnnotation(org.yah.sinject.annotations.Service.class);
+            final org.yah.sinject.annotations.Service annotation = method
+                    .getAnnotation(org.yah.sinject.annotations.Service.class);
             if (annotation != null)
                 return new AnnotatedMethod(method, annotation);
             return null;
         }
 
-        @Override
-        public Service<?> service(String name, Type type) throws ServiceResolutionException {
-            try {
-                return services.service(name, type);
-            } catch (ServiceResolutionException e) {
-                ServiceDeclaration<?> declaration = declaration(name, type);
-                if (declaration != null)
-                    return createService(declaration);
-                if (isResolving(name, type))
-                    throw new CircularDependencyException(resolvingDeclarations);
-                throw new NoSuchServiceException(name, type);
-            }
-        }
-
-        private boolean isResolving(String name, Type type) {
-            return resolvingDeclarations.stream().anyMatch(d -> d.match(name, type));
-        }
 
         private ServiceDeclaration<?> declaration(String name, Type type) {
             return declarations.stream()
@@ -172,25 +188,55 @@ public class DefaultServicesBuilder {
                     .orElse(null);
         }
 
-        private <T> Service<T> createService(ServiceDeclaration<T> declaration) {
+        private Service<?> transformAndCreateService(ServiceDeclaration<?> declaration) {
             resolvingDeclarations.add(declaration);
             try {
                 if (!declarations.remove(declaration))
                     throw new IllegalArgumentException("declaration " + declaration + " not found in declarations");
-
-                ServiceDeclaration<T> current = declaration;
-                for (Service<ServiceTransformer> transformerService : transformers) {
-                    final ServiceTransformer transformer = transformerService.get();
-                    current = transformer.transform(current);
-                }
-                return declaration.createInstanceSupplier(this)
-                        .map(supplier -> services.add(declaration, supplier))
-                        .orElse(null);
+                declaration = transformDeclaration(declaration);
+                return createService(declaration);
             } finally {
                 resolvingDeclarations.remove(resolvingDeclarations.size() - 1);
             }
         }
 
+        private <T> Service<T> createService(ServiceDeclaration<T> declaration) {
+            final InstanceSupplier<? extends T> instanceSupplier = declaration
+                    .createInstanceSupplier(this)
+                    .orElse(null);
+            if (instanceSupplier == null)
+                return null;
+            final List<Service<ServiceInstanceTransformer>> transformers = new ArrayList<>(instanceTransformers);
+            InstanceSupplier<? extends T> supplier = () -> transformInstance(transformers, declaration, instanceSupplier
+                    .get());
+            return this.services.add(declaration, supplier);
+        }
+
+        private ServiceDeclaration<?> transformDeclaration(ServiceDeclaration<?> declaration) {
+            ServiceDeclaration<?> current = declaration;
+            // transform declaration
+            for (Service<ServiceDeclarationTransformer> transformerService : declarationTransformers) {
+                final ServiceDeclarationTransformer transformer = transformerService.get();
+                current = transformer.transform(current);
+            }
+            return current;
+        }
+
+        private <T> T transformInstance(List<Service<ServiceInstanceTransformer>> transformers,
+                                        ServiceDeclaration<T> declaration,
+                                        T instance) {
+            T current = instance;
+            for (Service<ServiceInstanceTransformer> transformerService : transformers) {
+                // do not use a transformer to transform itself
+                final ServiceInstanceTransformer instanceTransformer = transformerService.get();
+                current = instanceTransformer.transform(declaration, current);
+            }
+            return current;
+        }
+
+        private boolean isResolving(String name, Type type) {
+            return resolvingDeclarations.stream().anyMatch(d -> d.match(name, type));
+        }
     }
 
 
@@ -227,16 +273,16 @@ public class DefaultServicesBuilder {
             return delegate.service(name, type);
         }
 
+        @Override
+        public int hashCode() {
+            return delegate.hashCode();
+        }
+
         @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             return o == delegate;
-        }
-
-        @Override
-        public int hashCode() {
-            return delegate.hashCode();
         }
     }
 }
